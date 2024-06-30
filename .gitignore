@@ -9,3 +9,6 @@ data/
 
 # python
 __pycache__/
+
+# kaggle
+Scikit-Learn_ML/kaggle.json
