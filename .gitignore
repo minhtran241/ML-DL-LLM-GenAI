@@ -11,4 +11,4 @@ data/
 __pycache__/
 
 # kaggle
-Scikit-Learn_ML/kaggle.json
+kaggle.json
