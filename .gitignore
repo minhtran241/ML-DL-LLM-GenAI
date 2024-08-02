@@ -12,3 +12,7 @@ __pycache__/
 
 # kaggle
 kaggle.json
+
+# Torch Lightning
+lightning_logs/
+*.ckpt
