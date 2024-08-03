@@ -1,18 +1,25 @@
-from helper_utils import project_embeddings
-from dotenv import load_dotenv
-from pypdf import PdfReader
-import os
-import chromadb
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-import google.generativeai as genai
+from helper_utils import (
+    project_embeddings,
+    # word_wrap,
+)  # Import utility functions for embedding projection and text wrapping
+from dotenv import (
+    load_dotenv,
+)  # Import function to load environment variables from a .env file
+from pypdf import PdfReader  # Import PdfReader for reading PDF files
+import os  # Import os module for interacting with the operating system
+import chromadb  # Import ChromaDB for document embedding and retrieval
+from chromadb.utils.embedding_functions import (
+    SentenceTransformerEmbeddingFunction,
+)  # Import embedding function from ChromaDB
+import google.generativeai as genai  # Import Google Generative AI module
 from langchain.text_splitter import (
     RecursiveCharacterTextSplitter,
     SentenceTransformersTokenTextSplitter,
-)
-import umap
-import matplotlib.pyplot as plt
+)  # Import text splitters for chunking text
+import umap  # Import UMAP for dimensionality reduction
+import matplotlib.pyplot as plt  # Import matplotlib for plotting
 
-# Load environment variables from .env file
+# Load environment variables from the .env file
 load_dotenv()
 
 # Configure the Google Generative AI with the API key from environment variables
@@ -80,22 +87,16 @@ results = chroma_collection.query(query_texts=[query], n_results=5)
 retrieved_docs = results["documents"][0]
 
 
-# Function to augment the retrieved documents using Google Generative AI
-def augment_query_generated(query, model="gemini-1.5-flash"):
+# Define a function to generate multiple related queries using Google Generative AI
+def generate_multi_query(query, model="gemini-1.5-flash"):
+    prompt = """
+    You are a knowledgeable financial research assistant. 
+    Your users are inquiring about an annual report. 
+    For the given question, propose up to five related questions to assist them in finding the information they need. 
+    Provide concise, single-topic questions (without compounding sentences) that cover various aspects of the topic. 
+    Ensure each question is complete and directly related to the original inquiry. 
+    List each question on a separate line without numbering.
     """
-    Generate an augmented query using Google Generative AI.
-
-    Parameters:
-    query (str): The original query to be augmented.
-    model (str): The model to use for generating the augmented query.
-
-    Returns:
-    str: The augmented query.
-    """
-    prompt = """You are a helpful expert financial research assistant. 
-    Provide an example answer to the given question, that might be found in a document like an annual report.
-    """
-
     # Initialize the generative model and start a chat
     client = genai.GenerativeModel(model)
     chat = client.start_chat(
@@ -110,72 +111,99 @@ def augment_query_generated(query, model="gemini-1.5-flash"):
 
     # Send the query to the chat and return the response
     response = chat.send_message(query)
-    return response.text
+    # Convert to list of strings
+    return response.text.split("\n")
 
 
-# Generate an augmented query based on the original query
-original_query = "What was the total profit for the year, and how does it compare to the previous year?"
-hypothetical_answer = augment_query_generated(original_query)
-joint_query = f"{original_query} {hypothetical_answer}"
-
-# Query the Chroma collection with the augmented query
-results = chroma_collection.query(
-    query_texts=[joint_query], n_results=5, include=["documents", "embeddings"]
+# Generate multiple related queries for the original query
+original_query = (
+    "What details can you provide about the factors that led to revenue growth?"
 )
+aug_queries = generate_multi_query(original_query)
 
-# Get embeddings from the Chroma collection
+# Concatenate the original query with the augmented queries
+joint_query = [
+    original_query
+] + aug_queries  # original query is in a list because Chroma can handle multiple queries
+
+print("\n\n".join(joint_query))
+
+# Query the Chroma collection with the original and augmented queries
+results = chroma_collection.query(
+    query_texts=joint_query, n_results=5, include=["documents", "embeddings"]
+)
+retrieved_docs = results["documents"]
+
+print(f"\nTotal number of retrieved documents: {len(retrieved_docs)}")
+
+# Deduplicate the retrieved documents
+i = 0
+unique_docs = set()
+for docs in retrieved_docs:
+    for doc in docs:
+        i += 1
+        unique_docs.add(doc)
+
+print(f"\nTotal number of retrieved documents before deduplication: {i}")
+print(f"\nNumber of unique retrieved documents: {len(unique_docs)}")
+
+# Output the unique retrieved documents (commented out to avoid cluttering the output)
+# for i, docs in enumerate(retrieved_docs):
+#     print(f"Query: {joint_query[i]}")
+#     print("")
+#     print("Retrieved Documents:")
+#     for doc in docs:
+#         print(word_wrap(doc))
+#         print("")
+#     print("-" * 100)
+
+# Get the embeddings of the retrieved documents
 embeddings = chroma_collection.get(include=["embeddings"])["embeddings"]
-
-# Fit the UMAP model on the dataset embeddings
 umap_transform = umap.UMAP(random_state=0, transform_seed=0).fit(embeddings)
 projected_dataset_embeddings = project_embeddings(embeddings, umap_transform)
 
-# Get the embeddings for the original and augmented queries
-retrieved_embeddings = results["embeddings"][0]
-original_query_embedding = ef([original_query])
-augmented_query_embedding = ef([joint_query])
-
-# Project the embeddings into a 2D space using UMAP
-projected_original_query_embedding = project_embeddings(
-    original_query_embedding, umap_transform
-)
-projected_augmented_query_embedding = project_embeddings(
-    augmented_query_embedding, umap_transform
-)
-projected_retrieved_embeddings = project_embeddings(
-    retrieved_embeddings, umap_transform
-)
-
 # Visualize the embeddings using UMAP
-plt.figure()
+original_query_embedding = ef([original_query])
+augmented_query_embeddings = ef(joint_query)
+
+project_original_query = project_embeddings(original_query_embedding, umap_transform)
+project_augmented_queries = project_embeddings(
+    augmented_query_embeddings, umap_transform
+)
+
+retrieved_embeddings = results["embeddings"]
+result_embeddings = [item for sublist in retrieved_embeddings for item in sublist]
+
+projected_result_embeddings = project_embeddings(result_embeddings, umap_transform)
 
 # Plot the projected query and retrieved documents in the embedding space
+plt.figure()
 plt.scatter(
-    projected_dataset_embeddings[:, 0],  # [:, 0] means all rows, column 0
-    projected_dataset_embeddings[:, 1],  # [:, 1] means all rows, column 1
+    projected_dataset_embeddings[:, 0],
+    projected_dataset_embeddings[:, 1],
     s=10,
     color="gray",
 )
 plt.scatter(
-    projected_retrieved_embeddings[:, 0],
-    projected_retrieved_embeddings[:, 1],
+    project_augmented_queries[:, 0],
+    project_augmented_queries[:, 1],
+    s=150,
+    marker="X",
+    color="orange",
+)
+plt.scatter(
+    projected_result_embeddings[:, 0],
+    projected_result_embeddings[:, 1],
     s=100,
     facecolors="none",
     edgecolors="g",
 )
 plt.scatter(
-    projected_original_query_embedding[:, 0],
-    projected_original_query_embedding[:, 1],
+    project_original_query[:, 0],
+    project_original_query[:, 1],
     s=150,
     marker="X",
     color="r",
-)
-plt.scatter(
-    projected_augmented_query_embedding[:, 0],
-    projected_augmented_query_embedding[:, 1],
-    s=150,
-    marker="X",
-    color="orange",
 )
 
 plt.gca().set_aspect("equal", "datalim")

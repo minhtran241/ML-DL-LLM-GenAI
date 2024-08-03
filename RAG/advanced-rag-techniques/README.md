@@ -17,9 +17,22 @@ Combine pre-retrieval data with the original query
 
 ### Query Expansion (with generated answers)
 
+_Check the code in the `expansion_answer.py` file_
+
 -   Generate potential answers to the query (using an LLM) and to get **relevant** context.
 -   Use cases:
     -   Information retrieval
     -   Question-answering systems
     -   E-commerce search engines
     -   Academic research
+
+### Query Expansion (with multiple queries)
+
+_Check the code in the `expansion_queries.py` file_
+
+-   Use the LLM to generate **multiple additional queries** that might help getting the most relevant answer.
+-   Use cases:
+    -   Exploring data analysis
+    -   Academic research
+    -   Customer support
+    -   Healthcare information systems
