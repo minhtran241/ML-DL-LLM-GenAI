@@ -1,0 +1,19 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\title{Model Distillation for Plant Disease Classification Using PlantVillage Dataset}
+\author{Minh Tran and Leo Ho}
+\date{}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The increasing global demand for food production necessitates innovative solutions to mitigate agricultural yield losses caused by plant diseases. The PlantVillage dataset, containing over 50,000 expertly curated images of healthy and diseased crop leaves, provides an opportunity for machine learning-driven disease classification. However, deploying deep learning models on mobile and edge devices presents challenges due to computational constraints. 
+
+This project explores model distillation as a strategy to enhance model efficiency while maintaining classification performance. Specifically, we distill knowledge from a large and computationally expensive ResNet152 model into a smaller, lightweight MobileNetV2 model. The methodology involves training the ResNet152 model on the PlantVillage dataset, leveraging its deep representational capabilities to serve as a teacher network. A student model, MobileNetV2, is then trained using soft labels and intermediate feature representations from the teacher model, optimizing its ability to generalize while significantly reducing model size and inference time.
+
+The experimental results demonstrate that the distilled MobileNetV2 model achieves competitive classification accuracy while operating with lower computational overhead. This approach enables efficient deployment on mobile devices, facilitating real-time plant disease detection for farmers in resource-constrained environments. Our findings highlight the potential of knowledge distillation to bridge the gap between high-performing deep learning models and practical deployment in real-world agricultural applications.
+\end{abstract}
+
+\end{document}
